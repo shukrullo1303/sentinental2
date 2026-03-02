@@ -30,7 +30,7 @@ def main() -> None:
 
     # 3. Vaqt oralig'ini avtomatik aniqlash (Bugungi kundan oldingi 30 kun)
     today = datetime.date.today()
-    past_date = today - datetime.timedelta(days=60)
+    past_date = today - datetime.timedelta(days=15)
     date_start = past_date.strftime("%Y-%m-%d")
     date_end = today.strftime("%Y-%m-%d")
 
@@ -128,11 +128,53 @@ def main() -> None:
         label="NDVI Indeksi (0=Tuproq, 1=Qalin o'simlik)",
     )
 
+    # NDVI ranglari uchun aniq legenda (diskret ko'rinishda)
+    ndvi_legend = {
+        "Qor / bulut (NDVI < 0)": "#FFFFFF",
+        "Tuproq / o'simlik yo'q (0 - 0.1)": "#CE7E45",
+        "Siyrak o'simlik (0.1 - 0.2)": "#DF923D",
+        "Quriyotgan o'tlar (0.2 - 0.3)": "#F1B555",
+        "O'rta o'simlik (0.3 - 0.4)": "#FCD163",
+        "Ekinlar (0.4 - 0.5)": "#99B718",
+        "Sog'lom ekinlar (0.5 - 0.7)": "#3E8601",
+        "Qalin o'rmon / juda sog'lom (0.7 - 0.8+)": "#011301",
+    }
+
+    Map.add_legend(
+        title="NDVI ranglarining ma'nosi",
+        legend_dict=ndvi_legend,
+        position="bottomright",
+    )
+
+    # NDVI ni vizual ko'rinishga (RGB) aylantirish
+    ndvi_rgb = ndvi.visualize(**vis_params)
+
     # Xaritani HTML faylga saqlash
     output_file = "asaka_monitor.html"
     Map.save(output_file)
 
-    print(f"Muvaffaqiyatli yakunlandi! '{output_file}' faylini ochib ko'ring.")
+    # NDVI ni GeoTIFF formatida saqlash (QGIS uchun qulay)
+    geemap.ee_export_image(
+        ndvi,
+        filename="asaka_ndvi.tif",
+        # Fayl hajmi chekloviga tushmaslik uchun biroz yirikroq piksel
+        # o'lchami va faqat Asaka atrofidagi hududni eksport qilamiz
+        scale=20,
+        region=asaka_point.buffer(15000).bounds(),  # ~30 km diametrli hudud
+    )
+
+    # HTML dagi palitra bilan bir xil rangli NDVI TIFF (RGB)
+    geemap.ee_export_image(
+        ndvi_rgb,
+        filename="asaka_ndvi_rgb.tif",
+        scale=20,
+        region=asaka_point.buffer(15000).bounds(),
+    )
+
+    print(
+        f"Muvaffaqiyatli yakunlandi! '{output_file}' HTML xarita, 'asaka_ndvi.tif' (sonli NDVI) "
+        "va 'asaka_ndvi_rgb.tif' (HTML dagi ranglar bilan) fayllarini QGISda ochishingiz mumkin."
+    )
 
 
 if __name__ == "__main__":
